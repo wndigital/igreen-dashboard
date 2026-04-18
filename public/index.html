@@ -34,14 +34,14 @@ const api = {
 };
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const toISO = (d) => d.toISOString().slice(0, 10);
+const toBRT = (d) => { const brt = new Date(d.toLocaleString("en-US", {timeZone:"America/Sao_Paulo"})); const y=brt.getFullYear(); const m=String(brt.getMonth()+1).padStart(2,"0"); const dd=String(brt.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; };
 const fmtDate = (iso) => { if(!iso) return "—"; const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
 const fmtMoney = (v) => `R$ ${Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-const todayISO = () => toISO(new Date());
-const yesterdayISO = () => { const d=new Date(); d.setDate(d.getDate()-1); return toISO(d); };
-const dayBeforeISO = () => { const d=new Date(); d.setDate(d.getDate()-2); return toISO(d); };
-const last7ISO = () => { const d=new Date(); d.setDate(d.getDate()-6); return toISO(d); };
-const monthStartISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`; };
+const todayISO = () => toBRT(new Date());
+const yesterdayISO = () => { const d=new Date(); d.setDate(d.getDate()-1); return toBRT(d); };
+const dayBeforeISO = () => { const d=new Date(); d.setDate(d.getDate()-2); return toBRT(d); };
+const last7ISO = () => { const d=new Date(); d.setDate(d.getDate()-6); return toBRT(d); };
+const monthStartISO = () => { const now=new Date(new Date().toLocaleString("en-US",{timeZone:"America/Sao_Paulo"})); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`; };
 
 const FONT = "'Montserrat', sans-serif";
 const C = {
