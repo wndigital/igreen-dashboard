@@ -205,7 +205,7 @@ function DashTab({entries,attendants}){
     const ass=filtered.reduce((s,e)=>s+(e.assinaturas||[]).reduce((a,c)=>a+Number(c.qty||0),0),0);
     const cBA={};const aBA={};
     filtered.forEach(e=>{(e.cadastros||[]).forEach(c=>{cBA[c.attId]=(cBA[c.attId]||0)+Number(c.qty||0)});(e.assinaturas||[]).forEach(a=>{aBA[a.attId]=(aBA[a.attId]||0)+Number(a.qty||0)})});
-    let tc=0;Object.values(cBA).forEach(q=>{if(q>20)tc+=(q-20)*5});Object.values(aBA).forEach(q=>{if(q>20)tc+=(q-20)*5});
+    let tc=0;filtered.forEach(e=>{(e.cadastros||[]).forEach(c=>{const q=Number(c.qty||0);if(q>20)tc+=(q-20)*5});(e.assinaturas||[]).forEach(a=>{const q=Number(a.qty||0);if(q>20)tc+=(q-20)*5})});
     return{inv,ld,cad,ass,tc,cpl:ld?inv/ld:0,cpc:cad?inv/cad:0,cpa:ass?inv/ass:0,txLC:ld?(cad/ld*100):0,txCA:cad?(ass/cad*100):0,txLA:ld?(ass/ld*100):0,cBA,aBA}
   },[filtered]);
   const cR=useMemo(()=>Object.entries(s.cBA).map(([id,qty])=>({att:attendants.find(a=>a.id===id),qty})).filter(r=>r.att).sort((a,b)=>b.qty-a.qty),[s.cBA,attendants]);
@@ -268,14 +268,14 @@ function LaunchTab({entries,setEntries,activeAtts,attendants,reload}){
 function CommTab({entries,attendants,commPaid,setCommPaid,reload}){
   const[fAtt,setFAtt]=useState("");const[fPer,setFPer]=useState({start:"",end:""});const[payM,setPayM]=useState(false);const[payR,setPayR]=useState({start:"",end:""});
   const paidDS=useMemo(()=>{const m={};commPaid.forEach(c=>{if(!m[c.attId])m[c.attId]=new Set();(c.paidDates||[]).forEach(d=>m[c.attId].add(d))});return m},[commPaid]);
-  const pendR=useMemo(()=>{const cBA={};const aBA={};entries.forEach(e=>{(e.cadastros||[]).forEach(c=>{if(paidDS[c.attId]?.has(e.date))return;cBA[c.attId]=(cBA[c.attId]||0)+Number(c.qty||0)});(e.assinaturas||[]).forEach(a=>{if(paidDS[a.attId]?.has(e.date))return;aBA[a.attId]=(aBA[a.attId]||0)+Number(a.qty||0)})});const rows=[];attendants.forEach(att=>{const q=att.role==="cadastro"?(cBA[att.id]||0):(aBA[att.id]||0);const b=q>20?(q-20)*5:0;if(q>0)rows.push({att,qty:q,ab:Math.max(q-20,0),bonus:b})});return rows},[entries,attendants,paidDS]);
+  const pendR=useMemo(()=>{const attStats={};entries.forEach(e=>{(e.cadastros||[]).forEach(c=>{if(paidDS[c.attId]?.has(e.date))return;const q=Number(c.qty||0);if(!attStats[c.attId])attStats[c.attId]={qty:0,ab:0,bonus:0};attStats[c.attId].qty+=q;const dayAb=Math.max(q-20,0);attStats[c.attId].ab+=dayAb;attStats[c.attId].bonus+=dayAb*5});(e.assinaturas||[]).forEach(a=>{if(paidDS[a.attId]?.has(e.date))return;const q=Number(a.qty||0);if(!attStats[a.attId])attStats[a.attId]={qty:0,ab:0,bonus:0};attStats[a.attId].qty+=q;const dayAb=Math.max(q-20,0);attStats[a.attId].ab+=dayAb;attStats[a.attId].bonus+=dayAb*5})});const rows=[];attendants.forEach(att=>{const st=attStats[att.id];if(st&&st.qty>0)rows.push({att,qty:st.qty,ab:st.ab,bonus:st.bonus})});return rows},[entries,attendants,paidDS]);
   const tPend=pendR.reduce((s,r)=>s+r.bonus,0);const tPaid=commPaid.reduce((s,c)=>s+Number(c.amount||0),0);const tPaidM=commPaid.filter(c=>c.paidDate>=monthStartISO()).reduce((s,c)=>s+Number(c.amount||0),0);const wC=commPaid.length?[...new Set(commPaid.map(c=>c.periodLabel))].length:0;
 
   const doPay=async()=>{
     if(!payR.start||!payR.end)return alert("Selecione o período.");
-    const cBA={};const aBA={};const dates=[];
-    entries.filter(e=>e.date>=payR.start&&e.date<=payR.end).forEach(e=>{dates.push(e.date);(e.cadastros||[]).forEach(c=>{if(paidDS[c.attId]?.has(e.date))return;cBA[c.attId]=(cBA[c.attId]||0)+Number(c.qty||0)});(e.assinaturas||[]).forEach(a=>{if(paidDS[a.attId]?.has(e.date))return;aBA[a.attId]=(aBA[a.attId]||0)+Number(a.qty||0)})});
-    const recs=[];attendants.forEach(att=>{const q=att.role==="cadastro"?(cBA[att.id]||0):(aBA[att.id]||0);const b=q>20?(q-20)*5:0;if(b>0)recs.push({id:uid(),attId:att.id,attName:att.name,role:att.role,qty:q,above20:q-20,amount:b,periodLabel:`${fmtDate(payR.start)} - ${fmtDate(payR.end)}`,paidDate:todayISO(),paidDates:[...new Set(dates)]})});
+    const dates=[];
+    entries.filter(e=>e.date>=payR.start&&e.date<=payR.end).forEach(e=>{dates.push(e.date)});
+    const recs=[];const attPay={};entries.filter(e=>e.date>=payR.start&&e.date<=payR.end).forEach(e=>{(e.cadastros||[]).forEach(c=>{if(paidDS[c.attId]?.has(e.date))return;const q=Number(c.qty||0);if(!attPay[c.attId])attPay[c.attId]={qty:0,ab:0,bonus:0};attPay[c.attId].qty+=q;const dayAb=Math.max(q-20,0);attPay[c.attId].ab+=dayAb;attPay[c.attId].bonus+=dayAb*5});(e.assinaturas||[]).forEach(a=>{if(paidDS[a.attId]?.has(e.date))return;const q=Number(a.qty||0);if(!attPay[a.attId])attPay[a.attId]={qty:0,ab:0,bonus:0};attPay[a.attId].qty+=q;const dayAb=Math.max(q-20,0);attPay[a.attId].ab+=dayAb;attPay[a.attId].bonus+=dayAb*5})});attendants.forEach(att=>{const st=attPay[att.id];if(st&&st.bonus>0)recs.push({id:uid(),attId:att.id,attName:att.name,role:att.role,qty:st.qty,above20:st.ab,amount:st.bonus,periodLabel:`${fmtDate(payR.start)} - ${fmtDate(payR.end)}`,paidDate:todayISO(),paidDates:[...new Set(dates)]})});
     if(!recs.length)return alert("Nenhuma comissão a pagar neste período.");
     try{await api.post('/api/comm-paid',recs);await reload();setPayM(false);setPayR({start:"",end:""})}catch(e){alert('Erro: '+e.message)}
   };
@@ -346,8 +346,9 @@ function EmpCommTab({user,entries,attendants,commPaid}){
   const myAtt=attendants.find(a=>a.name.toLowerCase()===user.name.toLowerCase());
   const myData=useMemo(()=>{if(!myAtt)return[];return entries.map(e=>{const items=(e[rk]||[]).filter(c=>c.attId===myAtt.id);const q=items.reduce((s,c)=>s+Number(c.qty||0),0);if(!q)return null;return{date:e.date,qty:q}}).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date))},[entries,myAtt,rk]);
   const paidD=useMemo(()=>{if(!myAtt)return new Set();const s=new Set();commPaid.filter(c=>c.attId===myAtt.id).forEach(c=>(c.paidDates||[]).forEach(d=>s.add(d)));return s},[commPaid,myAtt]);
-  const tQ=myData.reduce((s,d)=>s+d.qty,0);const tAb=Math.max(tQ-20,0);const tCA=tAb*5;
+  const tQ=myData.reduce((s,d)=>s+d.qty,0);const tAb=myData.reduce((s,d)=>s+Math.max(d.qty-20,0),0);const tCA=tAb*5;
   const tCP=commPaid.filter(c=>c.attId===myAtt?.id).reduce((s,c)=>s+Number(c.amount||0),0);const tCPend=Math.max(tCA-tCP,0);
+  const todayQty=myData.length>0?myData[0].qty:0;
 
   if(!myAtt) return <div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:16}}>😕</div><h2 style={{fontSize:20,fontWeight:700,marginBottom:8}}>Acesso não vinculado</h2><p style={{color:C.textMuted,fontSize:14}}>Seu nome não corresponde a nenhuma atendente. Peça ao administrador para verificar.</p></div>;
 
@@ -369,9 +370,9 @@ function EmpCommTab({user,entries,attendants,commPaid}){
       ].map((x,i)=><div key={x.l} style={dl(i)}><Card style={{background:`linear-gradient(135deg, ${C.cardBg} 0%, ${x.bg} 100%)`,border:`1px solid ${x.bc}`}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><span style={{fontSize:18}}>{x.ici}</span><span style={{fontSize:11,color:C.textMuted,fontWeight:600,textTransform:"uppercase"}}>{x.l}</span></div><span style={{fontSize:28,fontWeight:900,color:x.c}}>{x.v}</span><span style={{fontSize:11,color:C.textMuted,display:"block",marginTop:4}}>{x.sub}</span></Card></div>)}
     </div>
     <Card style={{marginBottom:24,animation:"fadeUp .5s ease .5s both"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{margin:0,fontSize:14,fontWeight:700}}>Progresso para a Meta</h3><span style={{fontSize:24,fontWeight:900,color:tQ>=20?C.green3:C.orange}}>{tQ}/20</span></div>
-      <div style={{height:12,borderRadius:6,background:C.darkBorder,overflow:"hidden"}}><div style={{height:12,borderRadius:6,background:tQ>=20?C.greenGrad:`linear-gradient(90deg,${C.orange},#FB923C)`,width:`${Math.min((tQ/20)*100,100)}%`,transition:"width 1s ease",boxShadow:tQ>=20?"0 0 12px rgba(39,174,96,.5)":"0 0 12px rgba(249,115,22,.5)"}}/></div>
-      <p style={{margin:"10px 0 0",fontSize:12,color:C.textMuted}}>{tQ>=20?`🎉 Meta batida! Você tem ${tAb} ${rl} bonificados!`:`Faltam ${20-tQ} ${rl} para começar a ganhar comissão!`}</p>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{margin:0,fontSize:14,fontWeight:700}}>Progresso de Hoje</h3><span style={{fontSize:24,fontWeight:900,color:todayQty>=20?C.green3:C.orange}}>{todayQty}/20</span></div>
+      <div style={{height:12,borderRadius:6,background:C.darkBorder,overflow:"hidden"}}><div style={{height:12,borderRadius:6,background:todayQty>=20?C.greenGrad:`linear-gradient(90deg,${C.orange},#FB923C)`,width:`${Math.min((todayQty/20)*100,100)}%`,transition:"width 1s ease",boxShadow:todayQty>=20?"0 0 12px rgba(39,174,96,.5)":"0 0 12px rgba(249,115,22,.5)"}}/></div>
+      <p style={{margin:"10px 0 0",fontSize:12,color:C.textMuted}}>{todayQty>=20?`🎉 Meta batida hoje! Você tem ${todayQty-20} ${rl} bonificados hoje!`:`Faltam ${20-todayQty} ${rl} para começar a ganhar comissão hoje!`}</p>
     </Card>
     <Card style={{animation:"fadeUp .5s ease .6s both"}}>
       <h3 style={{margin:"0 0 16px",fontSize:14,fontWeight:700}}>Detalhamento por Dia</h3>
