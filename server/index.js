@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.TZ = 'America/Sao_Paulo';
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
